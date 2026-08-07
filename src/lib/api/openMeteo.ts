@@ -6,6 +6,7 @@ import type {
   SearchResult,
   TemperatureUnit
 } from '../types/weather';
+import { searchWaterFeatures } from './usgs';
 
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -23,7 +24,7 @@ export async function searchLocations(query: string, signal?: AbortSignal): Prom
     throw new Error(body.reason ?? `Location search failed with status ${response.status}`);
   }
 
-  return (body.results ?? []).map((result) => ({
+  const locationResults = (body.results ?? []).map((result) => ({
     id: result.id,
     name: result.name,
     country: result.country,
@@ -34,6 +35,8 @@ export async function searchLocations(query: string, signal?: AbortSignal): Prom
     timezone: result.timezone,
     elevation: result.elevation
   }));
+  const waterFeatures = await searchWaterFeatures(query, signal).catch(() => []);
+  return [...waterFeatures, ...locationResults];
 }
 
 function assertForecastShape(response: ForecastResponse): void {

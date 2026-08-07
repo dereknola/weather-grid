@@ -4,6 +4,7 @@ export type DisplaySettings = {
   current: boolean;
   daily: boolean;
   hourly: boolean;
+  stations: boolean;
   temperatureUnit: TemperatureUnit;
 };
 
@@ -20,6 +21,7 @@ export type Location = {
 
 export type SearchResult = Location & {
   elevation?: number;
+  featureType?: string;
 };
 
 export type CurrentWeather = {
@@ -54,6 +56,32 @@ export type Forecast = {
   hourly: HourlyWeather[];
 };
 
+export type WeatherStation = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  distanceMiles: number;
+};
+
+export type NwsPointResponse = {
+  properties?: {
+    observationStations?: string;
+  };
+};
+
+export type NwsStationsResponse = {
+  features?: Array<{
+    geometry?: {
+      coordinates?: [number, number];
+    };
+    properties?: {
+      stationIdentifier?: string;
+      name?: string;
+    };
+  }>;
+};
+
 export type GeocodingResponse = {
   results?: Array<{
     id: number;
@@ -68,6 +96,47 @@ export type GeocodingResponse = {
   }>;
   error?: boolean;
   reason?: string;
+};
+
+export type UsgsWaterFeaturesResponse = {
+  features?: Array<{
+    attributes?: {
+      gaz_id?: number;
+      gaz_name?: string;
+      gaz_featureclass?: string;
+      state_alpha?: string;
+      county_name?: string;
+    };
+    geometry?: {
+      x?: number;
+      y?: number;
+    };
+  }>;
+};
+
+export type WikidataSearchResponse = {
+  search?: Array<{
+    id: string;
+    label: string;
+    description?: string;
+  }>;
+};
+
+export type WikidataEntityResponse = {
+  entities?: Record<string, {
+    claims?: {
+      P625?: Array<{
+        mainsnak?: {
+          datavalue?: {
+            value?: {
+              latitude?: number;
+              longitude?: number;
+            };
+          };
+        };
+      }>;
+    };
+  }>;
 };
 
 export type ForecastResponse = {

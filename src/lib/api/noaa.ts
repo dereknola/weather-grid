@@ -1,4 +1,5 @@
 import type { Location, NwsPointResponse, NwsStationsResponse, WeatherStation } from '../types/weather';
+import { fetchWithTimeout } from './request';
 
 const NWS_API_URL = 'https://api.weather.gov';
 
@@ -15,7 +16,7 @@ function distanceInMiles(fromLatitude: number, fromLongitude: number, toLatitude
 }
 
 async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { headers: { Accept: 'application/geo+json' }, signal });
+  const response = await fetchWithTimeout(url, { headers: { Accept: 'application/geo+json' }, signal });
   if (!response.ok) throw new Error(`NOAA request failed with status ${response.status}`);
   return response.json() as Promise<T>;
 }

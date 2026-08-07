@@ -7,6 +7,7 @@ import type {
   TemperatureUnit
 } from '../types/weather';
 import { searchWaterFeatures } from './usgs';
+import { fetchWithTimeout } from './request';
 
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -18,7 +19,7 @@ export async function searchLocations(query: string, signal?: AbortSignal): Prom
   url.searchParams.set('language', 'en');
   url.searchParams.set('format', 'json');
 
-  const response = await fetch(url, { signal });
+  const response = await fetchWithTimeout(url, { signal });
   const body = (await response.json()) as GeocodingResponse;
   if (!response.ok || body.error) {
     throw new Error(body.reason ?? `Location search failed with status ${response.status}`);
@@ -60,7 +61,7 @@ export async function fetchForecast(
   url.searchParams.set('temperature_unit', temperatureUnit);
   url.searchParams.set('timezone', 'auto');
 
-  const response = await fetch(url, { signal });
+  const response = await fetchWithTimeout(url, { signal });
   const body = (await response.json()) as ForecastResponse;
   if (!response.ok || body.error) {
     throw new Error(body.reason ?? `Forecast request failed with status ${response.status}`);

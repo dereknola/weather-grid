@@ -1,4 +1,5 @@
 import type { SearchResult, WikidataEntityResponse, WikidataSearchResponse } from '../types/weather';
+import { fetchWithTimeout } from './request';
 
 const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php';
 const waterbodyPattern = /\b(lake|reservoir|river|bay|lagoon|pond|canal|wetland|water body)\b/i;
@@ -10,7 +11,7 @@ function featureType(description: string | undefined): string {
 }
 
 async function fetchJson<T>(url: URL, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
+  const response = await fetchWithTimeout(url, { signal });
   if (!response.ok) throw new Error(`Wikidata search failed with status ${response.status}`);
   return response.json() as Promise<T>;
 }

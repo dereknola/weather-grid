@@ -1,5 +1,6 @@
 import type { SearchResult, UsgsWaterFeaturesResponse } from '../types/weather';
 import { searchWaterFeatureAliases } from './wikidata';
+import { fetchWithTimeout } from './request';
 
 const USGS_WATER_FEATURES_URL = 'https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/7/query';
 
@@ -28,7 +29,7 @@ export async function searchWaterFeatures(query: string, signal?: AbortSignal): 
   url.searchParams.set('resultRecordCount', '8');
   url.searchParams.set('f', 'json');
 
-  const response = await fetch(url, { signal });
+  const response = await fetchWithTimeout(url, { signal });
   if (!response.ok) throw new Error(`USGS water search failed with status ${response.status}`);
   const body = (await response.json()) as UsgsWaterFeaturesResponse;
 

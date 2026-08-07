@@ -3,6 +3,47 @@ import { fetchForecast } from '../api/openMeteo';
 import type { DisplaySettings, Forecast, Location, TemperatureUnit, WeatherStation } from '../types/weather';
 
 const STORAGE_KEY = 'weather-grid:v1';
+export const DEFAULT_MAX_LOCATIONS = 20;
+export const ABSOLUTE_MAX_LOCATIONS = 50;
+const REQUEST_CONCURRENCY = 3;
+
+type QueuedRequest = {
+  run: () => Promise<unknown>;
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+};
+
+function configuredMaxLocations(): number {
+  const configured = Number(import.meta.env.VITE_MAX_LOCATIONS);
+  if (!Number.isInteger(configured) || configured < 1) return DEFAULT_MAX_LOCATIONS;
+  return Math.min(configured, ABSOLUTE_MAX_LOCATIONS);
+}
+
+function createRequestScheduler(concurrency: number) {
+  const queue: QueuedRequest[] = [];
+  let active = 0;
+
+  function pump(): void {
+    while (active < concurrency && queue.length > 0) {
+      const request = queue.shift();
+      if (!request) return;
+      active += 1;
+      request.run().then(request.resolve, request.reject).finally(() => {
+        active -= 1;
+        pump();
+      });
+    }
+  }
+
+  return {
+    enqueue<T>(run: () => Promise<T>): Promise<T> {
+      return new Promise<T>((resolve, reject) => {
+        queue.push({ run, resolve: resolve as (value: unknown) => void, reject });
+        pump();
+      });
+    }
+  };
+}
 
 export type CardState = { forecast?: Forecast; loading: boolean; error?: string; station?: WeatherStation; stationLoading?: boolean };
 export type WeatherGridState = {
@@ -10,6 +51,7 @@ export type WeatherGridState = {
   readonly settings: DisplaySettings;
   readonly cards: Record<number, CardState>;
   readonly announce: string;
+  readonly maxLocations: number;
   addLocation: (location: Location) => void;
   removeLocation: (id: number) => void;
   retry: (id: number) => void;
@@ -24,7 +66,7 @@ function loadSavedState(): { locations: Location[]; settings: DisplaySettings } 
   if (typeof localStorage === 'undefined') return { locations: [], settings: defaultSettings };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<{ locations: Location[]; settings: DisplaySettings }>;
-    const locations = Array.isArray(saved.locations) ? saved.locations.filter((location) => typeof location?.id === 'number' && typeof location?.name === 'string') : [];
+    const locations = Array.isArray(saved.locations) ? saved.locations.filter((location) => typeof location?.id === 'number' && typeof location?.name === 'string').slice(0, configuredMaxLocations()) : [];
     const settings = { ...defaultSettings, ...(saved.settings ?? {}) };
     return { locations, settings: { current: Boolean(settings.current), daily: Boolean(settings.daily), hourly: Boolean(settings.hourly), stations: Boolean(settings.stations), temperatureUnit: settings.temperatureUnit === 'fahrenheit' ? 'fahrenheit' : 'celsius' } };
   } catch { return { locations: [], settings: defaultSettings }; }
@@ -41,17 +83,19 @@ export function createWeatherGrid(): WeatherGridState {
   let cards = $state<Record<number, CardState>>({});
   let announce = $state('');
   const requestIds = new Map<number, number>();
+  const requestScheduler = createRequestScheduler(REQUEST_CONCURRENCY);
+  const maxLocations = configuredMaxLocations();
 
   function loadForecast(location: Location): void {
     const requestId = (requestIds.get(location.id) ?? 0) + 1;
     requestIds.set(location.id, requestId);
     cards[location.id] = { ...cards[location.id], loading: true, error: undefined, station: undefined, stationLoading: location.countryCode === 'US' };
-    fetchForecast(location, settings.temperatureUnit).then((forecast) => {
+    requestScheduler.enqueue(() => fetchForecast(location, settings.temperatureUnit)).then((forecast) => {
       if (requestIds.get(location.id) === requestId) cards[location.id] = { ...cards[location.id], forecast, loading: false };
     }).catch((error: unknown) => {
       if (requestIds.get(location.id) === requestId) cards[location.id] = { ...cards[location.id], loading: false, error: error instanceof Error ? error.message : 'Unable to load this forecast.' };
     });
-    fetchNearestWeatherStation(location).then((station) => {
+    requestScheduler.enqueue(() => fetchNearestWeatherStation(location)).then((station) => {
       if (requestIds.get(location.id) === requestId) cards[location.id] = { ...cards[location.id], station, stationLoading: false };
     }).catch(() => {
       if (requestIds.get(location.id) === requestId) cards[location.id] = { ...cards[location.id], stationLoading: false };
@@ -60,6 +104,7 @@ export function createWeatherGrid(): WeatherGridState {
 
   function addLocation(location: Location): void {
     if (locations.some((saved) => saved.id === location.id)) { announce = `${location.name} is already on your grid.`; return; }
+    if (locations.length >= maxLocations) { announce = `Your grid is full at ${maxLocations} locations. Remove one before adding another.`; return; }
     locations = [...locations, location]; persist(locations, settings); announce = `${location.name} added to your grid.`; loadForecast(location);
   }
   function removeLocation(id: number): void {
@@ -80,6 +125,7 @@ export function createWeatherGrid(): WeatherGridState {
     get settings() { return settings; },
     get cards() { return cards; },
     get announce() { return announce; },
+    maxLocations,
     addLocation, removeLocation, refreshAll, setUnit, toggleSection,
     retry: (id) => { const location = locations.find((saved) => saved.id === id); if (location) loadForecast(location); }
   };

@@ -1,0 +1,32 @@
+version: '3'
+
+vars:
+  TASK_DIR: .task
+  DEV_PID_FILE: .task/weather-grid-dev.pid
+  DEV_LOG_FILE: .task/weather-grid-dev.log
+  DEV_HOST: 127.0.0.1
+  DEV_PORT: '5173'
+
+tasks:
+  build:
+    desc: Build the production bundle
+    cmds:
+      - npm run build
+
+  dev:
+    desc: Build the app and start the local Vite dev server
+    deps:
+      - build
+    cmds:
+      - mkdir -p {{.TASK_DIR}}
+      - task cleanup
+      - sh -c 'nohup npm run dev -- --host {{.DEV_HOST}} --port {{.DEV_PORT}} > {{.DEV_LOG_FILE}} 2>&1 < /dev/null & echo $! > {{.DEV_PID_FILE}}'
+      - 'echo "Weather Grid is running at http://{{.DEV_HOST}}:{{.DEV_PORT}}/"'
+      - 'echo "Logs: {{.DEV_LOG_FILE}}"'
+
+  cleanup:
+    desc: Stop the local dev server and remove its PID/log files
+    cmds:
+      - sh -c 'if [ -f {{.DEV_PID_FILE}} ]; then kill "$(cat {{.DEV_PID_FILE}})" 2>/dev/null || true; fi'
+      - rm -f {{.DEV_PID_FILE}} {{.DEV_LOG_FILE}}
+      - echo 'Local Weather Grid server cleaned up.'

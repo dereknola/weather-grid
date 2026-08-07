@@ -7,7 +7,7 @@
 .weather-card > .current-section { order: 3; }
 .weather-card > .hourly-section { order: 4; }
 .weather-card > .forecast-section[aria-label='Five day forecast'] { order: 5; }
-.control-deck { position: relative; z-index: 5; }
+.shell > .control-deck { position: relative; z-index: 10; }
 .search-wrap { z-index: 6; }
 .search-results { z-index: 7; }
 .daily-list { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; gap: 8px; overflow-x: visible; }

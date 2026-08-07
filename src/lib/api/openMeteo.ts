@@ -72,6 +72,8 @@ export async function fetchForecast(
 
   return {
     location,
+    latitude: body.latitude,
+    longitude: body.longitude,
     timezone: body.timezone,
     temperatureUnit: body.current_units.temperature_2m,
     current: {

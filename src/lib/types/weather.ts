@@ -49,6 +49,8 @@ export type HourlyWeather = {
 
 export type Forecast = {
   location: Location;
+  latitude: number;
+  longitude: number;
   timezone: string;
   temperatureUnit: string;
   current: CurrentWeather;
@@ -140,6 +142,8 @@ export type WikidataEntityResponse = {
 };
 
 export type ForecastResponse = {
+  latitude: number;
+  longitude: number;
   timezone: string;
   current: {
     time: string;
